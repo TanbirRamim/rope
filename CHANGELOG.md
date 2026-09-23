@@ -8,7 +8,7 @@
 - #623, #819, #863 Support MatchOr, MatchSequence, MatchStar (@jheld, @lieryan)
 - #870 Add default implementation for is_dir() (@lieryan)
 - #872 Fix unicode handling in patchedast (@lieryan)
-- #862 Recognize type alias statements as assignments in rename and inline refactoring (@TanbirRamim)
+- #862 Recognize type alias statements as assignments in rename refactoring (@TanbirRamim)
 
 # Release 1.14.0
 
