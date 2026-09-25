@@ -285,11 +285,11 @@ class PatchedASTTest(unittest.TestCase):
 
     @testutils.only_for_versions_higher("3.12")
     def test_handling_pep695_generic_function(self):
-        source = "def f[T](x: T) -> T:\n    return x\n"
+        source = "def f[T](x):\n    return x\n"
         ast_frag = patchedast.get_patched_ast(source, True)
-        # The type parameter list must be rendered between name and '('.
-        assert "[T]" in source
         checker = _ResultChecker(self, ast_frag)
+        t_start = source.index("[T]") + 1
+        checker.check_region("TypeVar", t_start, t_start + 1)
         checker.check_children("TypeVar", ["T"])
 
     @testutils.only_for_versions_higher("3.12")
@@ -297,6 +297,8 @@ class PatchedASTTest(unittest.TestCase):
         source = "class C[T]:\n    pass\n"
         ast_frag = patchedast.get_patched_ast(source, True)
         checker = _ResultChecker(self, ast_frag)
+        t_start = source.index("[T]") + 1
+        checker.check_region("TypeVar", t_start, t_start + 1)
         checker.check_children("TypeVar", ["T"])
 
     @testutils.only_for_versions_higher("3.10")
