@@ -339,25 +339,43 @@ class PatchedASTTest(unittest.TestCase):
 
     @testutils.only_for_versions_higher("3.12")
     def test_handling_pep695_generic_function(self):
-        source = "def f[T](x: T) -> T:\n    return x\n"
+        # TP occurs only in the type parameter list, so its region can only
+        # come from the "[TP]" clause rendered between the name and "(".
+        source = "def f[TP](x):\n    return x\n"
         ast_frag = patchedast.get_patched_ast(source, True)
-        # The type parameter list must be rendered between name and '('.
-        assert "[T]" in source
         checker = _ResultChecker(self, ast_frag)
-        checker.check_children("TypeVar", ["T"])
+        checker.check_children(
+            "FunctionDef",
+            ["def", " ", "f", "", "[", "", "TypeVar", "", "]", "", "(", "",
+             "arguments", "", ")", "", ":", "\n    ", "Return"],
+        )
+        start = source.index("TP")
+        checker.check_region("TypeVar", start, start + len("TP"))
 
     @testutils.only_for_versions_higher("3.12")
     def test_handling_pep695_generic_class(self):
-        source = "class C[T]:\n    pass\n"
+        source = "class C[TP]:\n    pass\n"
         ast_frag = patchedast.get_patched_ast(source, True)
         checker = _ResultChecker(self, ast_frag)
-        checker.check_children("TypeVar", ["T"])
+        checker.check_children(
+            "ClassDef",
+            ["class", " ", "C", "", "[", "", "TypeVar", "", "]", "", ":",
+             "\n    ", "Pass"],
+        )
+        start = source.index("TP")
+        checker.check_region("TypeVar", start, start + len("TP"))
 
     @testutils.only_for_versions_higher("3.10")
     def test_handling_match_sequence_and_star(self):
         source = "match x:\n    case [1, *rest]:\n        pass\n"
         ast_frag = patchedast.get_patched_ast(source, True)
         checker = _ResultChecker(self, ast_frag)
+        checker.check_children(
+            "MatchSequence",
+            ["[", "", "MatchValue", "", ",", " ", "MatchStar", "", "]"],
+        )
+        start = source.index("[1, *rest]")
+        checker.check_region("MatchSequence", start, start + len("[1, *rest]"))
         checker.check_children("MatchStar", ["*", "", "rest"])
 
     @testutils.only_for_versions_higher("3.10")
