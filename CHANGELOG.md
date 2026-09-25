@@ -1,11 +1,14 @@
 # **Upcoming release**
 
-- Add `patchedast` handlers for Python 3.12/3.13 native syntax so rope's AST
-  region walker no longer emits `Unknown node type` warnings or aborts on
-  PEP 695 type parameters (`type X[T] = ...`, `def f[T]`, `class C[T]`,
-  TypeVar/ParamSpec/TypeVarTuple) and structural pattern subtypes
-  (MatchSequence, MatchStar, MatchOr, MatchSingleton) (@marlon-costa-dc)
-- ...
+- #850 Update and pin black version in pre-commit and Github Actions
+- #851 Bump supported python version to up to Python 3.14
+- #852 Implement patchedast handlers for TypeAlias
+- #853 Implement patchedast handlers TypeVar
+- #847 Avoid printing autoimport syntax errors (@yangfan-yf-yf)
+- #623, #819, #863 Support MatchOr, MatchSequence, MatchStar (@jheld, @lieryan)
+- #870 Add default implementation for is_dir() (@lieryan)
+- #872 Fix unicode handling in patchedast (@lieryan)
+- Support PEP 695 type parameters on class definitions and type aliases in patchedast
 
 # Release 1.14.0
 

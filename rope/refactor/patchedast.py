@@ -67,6 +67,7 @@ class _PatchingASTWalker:
         self.source = _Source(source)
         self.children = children
         self.lines = codeanalyze.SourceLinesAdapter(source)
+        self.ast_adapter = codeanalyze.ASTLinesAdapter(source)
         self.children_stack = []
 
     Number = object()
@@ -217,7 +218,8 @@ class _PatchingASTWalker:
         for children in reversed(self.children_stack):
             for child in children:
                 if isinstance(child, ast.stmt):
-                    return child.col_offset + self.lines.get_line_start(child.lineno)
+                    start, _ = self.ast_adapter[child]
+                    return start
         return len(self.source.source)
 
     def _join(self, iterable, separator):
@@ -325,7 +327,7 @@ class _PatchingASTWalker:
         for decorator in node.decorator_list:
             children.extend(("@", decorator))
         children.extend(["class", node.name])
-        children.extend(self._type_params_children(node))
+        self._add_type_params(node, children)
         if node.bases:
             children.append("(")
             children.extend(self._child_nodes(node.bases, ","))
@@ -333,21 +335,6 @@ class _PatchingASTWalker:
         children.append(":")
         children.extend(node.body)
         self._handle(node, children)
-
-    def _type_params_children(self, node):
-        # PEP 695: render `[T, *Ts, **P]` type parameters between the name and
-        # the opening parenthesis. Empty when the node has no type params so
-        # pre-3.12 code is unaffected.
-        type_params = getattr(node, "type_params", None) or ()
-        if not type_params:
-            return []
-        children = ["["]
-        for index, type_param in enumerate(type_params):
-            if index > 0:
-                children.append(",")
-            children.append(type_param)
-        children.append("]")
-        return children
 
     def _Compare(self, node):
         children = []
@@ -507,7 +494,7 @@ class _PatchingASTWalker:
             children.extend(("@", decorator))
         children.extend(["async", "def"] if is_async else ["def"])
         children.append(node.name)
-        children.extend(self._type_params_children(node))
+        self._add_type_params(node, children)
         children.extend(["(", node.args, ")"])
         children.append(":")
         children.extend(node.body)
@@ -590,11 +577,8 @@ class _PatchingASTWalker:
     def _is_elif(self, node):
         if not isinstance(node, ast.If):
             return False
-        offset = self.lines.get_line_start(node.lineno) + node.col_offset
-        word = self.source[offset : offset + 4]
-        # XXX: This is a bug; the offset does not point to the first
-        alt_word = self.source[offset - 5 : offset - 1]
-        return "elif" in (word, alt_word)
+        start, end = self.ast_adapter[node]
+        return "elif" in self.source[start : start + 4]
 
     def _IfExp(self, node):
         return self._handle(node, [node.body, "if", node.test, "else", node.orelse])
@@ -802,6 +786,13 @@ class _PatchingASTWalker:
         children.extend(node.cases)
         self._handle(node, children)
 
+    def _MatchOr(self, node):
+        children = [*self._child_nodes(node.patterns, "|")]
+        self._handle(node, children)
+
+    def _MatchSingleton(self, node):
+        self._handle(node, [str(node.value)])
+
     def _match_case(self, node):
         children = ["case", node.pattern]
         if node.guard:
@@ -809,6 +800,43 @@ class _PatchingASTWalker:
         children.append(":")
         children.extend(node.body)
         self._handle(node, children)
+
+    def _MatchSequence(self, node):
+        if node.patterns:
+            opening_paren, closing_paren = self._get_surrounding_parens(node)
+
+            children = [
+                *opening_paren,
+                *self._child_nodes(node.patterns, ","),
+                *closing_paren,
+            ]
+        else:
+            empty_tuple = self.ast_adapter.get_source_segment(node)
+            children = [empty_tuple]
+        self._handle(node, children)
+
+    def _get_surrounding_parens(self, node: ast.MatchSequence):
+        node_start, node_end = self.ast_adapter[node]
+        first_pattern_start, _ = self.ast_adapter[node.patterns[0]]
+        _, last_pattern_end = self.ast_adapter[node.patterns[-1]]
+        opening_paren = self.source[node_start:first_pattern_start].strip()
+        closing_paren = self.source[last_pattern_end:node_end].strip()
+
+        if opening_paren not in ["[", "(", ""]:
+            warnings.warn(
+                f"Unexpected character in MatchSequence's opening_paren <{opening_paren}>; please report!",
+                RuntimeWarning,
+            )
+
+        if closing_paren not in ["]", ")", ""]:
+            warnings.warn(
+                f"Unexpected character in MatchSequence's closing_paren <{closing_paren}>; please report!",
+                RuntimeWarning,
+            )
+        return opening_paren, closing_paren
+
+    def _MatchStar(self, node):
+        self._handle(node, ["*", node.name or "_"])
 
     def _MatchAs(self, node):
         if node.pattern:
@@ -842,52 +870,39 @@ class _PatchingASTWalker:
         children.append("}")
         self._handle(node, children)
 
-    def _pattern_opening_token(self, node):
-        lineno = getattr(node, "lineno", None)
-        col_offset = getattr(node, "col_offset", None)
-        if not isinstance(lineno, int) or not isinstance(col_offset, int):
-            return ""
-        line_start = self.lines.get_line_start(lineno)
-        start = line_start + col_offset
-        return self.source.source[start : start + 1]
-
-    def _MatchSequence(self, node):
-        children = self._child_nodes(node.patterns, ",")
-        opening = self._pattern_opening_token(node)
-        if opening == "[":
-            self._handle(node, ["[", *children, "]"])
-            return
-        if opening == "(" and not node.patterns:
-            self._handle(node, [self.empty_tuple])
-            return
-        self._handle(node, children, eat_parens=opening == "(")
-
-    def _MatchStar(self, node):
-        self._handle(node, ["*", node.name or "_"])
-
-    def _MatchOr(self, node):
-        self._handle(node, self._child_nodes(node.patterns, "|"))
-
-    def _MatchSingleton(self, node):
-        self._handle(node, [str(node.value)])
-
     def _TypeAlias(self, node):
         children = ["type", node.name]
-        children.extend(self._type_params_children(node))
-        children.extend(["=", node.value])
+        self._add_type_params(node, children)
+        children.append(node.value)
         self._handle(node, children)
+
+    def _add_type_params(self, node, children):
+        """Append the PEP 695 ``[T, ...]`` clause of a def, class or type alias."""
+        type_params = getattr(node, "type_params", [])
+        if type_params:
+            children.extend(["[", *self._child_nodes(type_params, ","), "]"])
 
     def _TypeVar(self, node):
         children = [node.name]
-        if getattr(node, "bound", None) is not None:
+        if node.bound:
             children.extend([":", node.bound])
+        self._handle_default_value(node, children)
+        self._handle(node, children)
+
+    def _TypeVarTuple(self, node):
+        children = ["*", node.name]
+        self._handle_default_value(node, children)
         self._handle(node, children)
 
     def _ParamSpec(self, node):
-        self._handle(node, ["**", node.name])
+        children = ["**", node.name]
+        self._handle_default_value(node, children)
+        self._handle(node, children)
 
-    def _TypeVarTuple(self, node):
-        self._handle(node, ["*", node.name])
+    def _handle_default_value(self, node, children):
+        default_value = getattr(node, "default_value", None)
+        if default_value:
+            children.extend(["=", default_value])
 
 
 class _Source:
@@ -1001,9 +1016,6 @@ class _Source:
 
     def __getitem__(self, index):
         return self.source[index]
-
-    def __getslice__(self, i, j):
-        return self.source[i:j]
 
     def _get_number_pattern(self):
         # HACK: It is merely an approaximation and does the job
