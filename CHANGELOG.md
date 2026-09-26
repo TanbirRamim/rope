@@ -1,14 +1,17 @@
 # **Upcoming release**
 
-- #850 Update and pin black version in pre-commit and Github Actions
-- #851 Bump supported python version to up to Python 3.14
-- #852 Implement patchedast handlers for TypeAlias
-- #853 Implement patchedast handlers TypeVar
+- #862, #874 Recognize type alias statements as assignments in rename refactoring (@TanbirRamim)
+
+# Release 1.15.0
+
+- #850 Update and pin black version in pre-commit and Github Actions (@lieryan)
+- #851 Bump supported python version to up to Python 3.14 (@lieryan)
+- #852 Implement patchedast handlers for TypeAlias (@lieryan)
+- #853 Implement patchedast handlers TypeVar (@lieryan)
 - #847 Avoid printing autoimport syntax errors (@yangfan-yf-yf)
 - #623, #819, #863 Support MatchOr, MatchSequence, MatchStar (@jheld, @lieryan)
 - #870 Add default implementation for is_dir() (@lieryan)
 - #872 Fix unicode handling in patchedast (@lieryan)
-- #862 Recognize type alias statements as assignments in rename refactoring (@TanbirRamim)
 
 # Release 1.14.0
 
