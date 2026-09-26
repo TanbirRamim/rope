@@ -9,6 +9,7 @@
 - #870 Add default implementation for is_dir() (@lieryan)
 - #872 Fix unicode handling in patchedast (@lieryan)
 - #845 Support PEP 695 type parameters on class definitions and type aliases in patchedast (@marlon-costa-dc)
+- #849 docs: resolve warnings and update Github Actions versions (@mcepl)
 
 # Release 1.14.0
 
