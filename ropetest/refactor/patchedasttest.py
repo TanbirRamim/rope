@@ -328,7 +328,9 @@ class PatchedASTTest(unittest.TestCase):
 
     @testutils.only_for_versions_higher("3.12")
     def test_handling_pep695_type_alias(self):
-        source = "type Alias[T] = list[T]\n"
+        source = dedent("""\
+            type Alias[T] = list[T]
+        """)
         ast_frag = patchedast.get_patched_ast(source, True)
         checker = _ResultChecker(self, ast_frag)
         checker.check_children(
@@ -341,7 +343,10 @@ class PatchedASTTest(unittest.TestCase):
     def test_handling_pep695_generic_function(self):
         # TP occurs only in the type parameter list, so its region can only
         # come from the "[TP]" clause rendered between the name and "(".
-        source = "def f[TP](x):\n    return x\n"
+        source = dedent("""\
+            def f[TP](x):
+                return x
+        """)
         ast_frag = patchedast.get_patched_ast(source, True)
         checker = _ResultChecker(self, ast_frag)
         checker.check_children(
@@ -354,7 +359,10 @@ class PatchedASTTest(unittest.TestCase):
 
     @testutils.only_for_versions_higher("3.12")
     def test_handling_pep695_generic_class(self):
-        source = "class C[TP]:\n    pass\n"
+        source = dedent("""\
+            class C[TP]:
+                pass
+        """)
         ast_frag = patchedast.get_patched_ast(source, True)
         checker = _ResultChecker(self, ast_frag)
         checker.check_children(
@@ -367,7 +375,11 @@ class PatchedASTTest(unittest.TestCase):
 
     @testutils.only_for_versions_higher("3.10")
     def test_handling_match_sequence_and_star(self):
-        source = "match x:\n    case [1, *rest]:\n        pass\n"
+        source = dedent("""\
+            match x:
+                case [1, *rest]:
+                    pass
+        """)
         ast_frag = patchedast.get_patched_ast(source, True)
         checker = _ResultChecker(self, ast_frag)
         checker.check_children(
@@ -380,7 +392,11 @@ class PatchedASTTest(unittest.TestCase):
 
     @testutils.only_for_versions_higher("3.10")
     def test_handling_match_or_and_singleton(self):
-        source = "match x:\n    case 1 | None:\n        pass\n"
+        source = dedent("""\
+            match x:
+                case 1 | None:
+                    pass
+        """)
         ast_frag = patchedast.get_patched_ast(source, True)
         checker = _ResultChecker(self, ast_frag)
         checker.check_children(
