@@ -8,7 +8,7 @@
 - #623, #819, #863 Support MatchOr, MatchSequence, MatchStar (@jheld, @lieryan)
 - #870 Add default implementation for is_dir() (@lieryan)
 - #872 Fix unicode handling in patchedast (@lieryan)
-- Support PEP 695 type parameters on class definitions and type aliases in patchedast
+- #845 Support PEP 695 type parameters on class definitions and type aliases in patchedast (@marlon-costa-dc)
 
 # Release 1.14.0
 
